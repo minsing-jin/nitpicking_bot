@@ -12,7 +12,10 @@
     "https://chat.openai.com/*",
     "https://claude.ai/*",
     "https://bard.google.com/*",
-    "https://gemini.google.com/*"
+    "https://gemini.google.com/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
+    "https://generativelanguage.googleapis.com/*"
   ],
   "content_scripts": [
     {
@@ -31,6 +34,16 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Critical Thinking Bot"
+    "default_title": "Critical Thinking Bot",
+    "default_icon": {
+      "16": "icons/gang16.png",
+      "48": "icons/gang48.png",
+      "128": "icons/gang128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/gang16.png",
+    "48": "icons/gang48.png",
+    "128": "icons/gang128.png"
   }
-} 
+}

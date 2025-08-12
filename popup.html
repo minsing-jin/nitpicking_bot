@@ -52,6 +52,45 @@
                         </label>
                     </div>
                 </div>
+
+                <div class="setting-item">
+                    <label>자동 비판 응답 생성</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autoGenerate">
+                            <span>LLM API로 자동 생성</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <label for="provider">API 제공자</label>
+                    <select id="provider">
+                        <option value="openai" selected>OpenAI</option>
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="gemini">Google Gemini</option>
+                    </select>
+                </div>
+
+                <div class="setting-item">
+                    <label for="model">모델</label>
+                    <input id="model" type="text" placeholder="gpt-4o-mini / claude-3-haiku-20240307 / gemini-1.5-flash">
+                </div>
+
+                <div class="setting-item">
+                    <label for="apiKey">API Key</label>
+                    <input id="apiKey" type="password" placeholder="키를 입력하세요 (로컬 저장)">
+                </div>
+
+                <div class="setting-item">
+                    <label>자동 입력/전송</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autoSend">
+                            <span>비판 프롬프트를 입력창에 자동 붙여넣고 전송</span>
+                        </label>
+                    </div>
+                </div>
             </div>
             
             <div class="stats-section">
