@@ -1,11 +1,23 @@
+/* 확장 프로그램의 컨테이너를 지정하여 스타일 범위 제한 */
+#critical-thinking-extension {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: white;
+    min-width: 320px;
+    min-height: 400px;
+}
+
 /* 팝업 UI 스타일링 */
+
 body {
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: #f8f9fa;
-    min-width: 320px;
-    min-height: 400px;
+}
+
+/* 특정 팝업에만 스타일 적용 */
+.critical-thinking-popup {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 .popup-container {
@@ -276,4 +288,4 @@ body {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transition: all 0.2s;
-} 
+}

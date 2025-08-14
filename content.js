@@ -176,9 +176,9 @@ class CriticalThinkingBot {
     detectClaudeResponse(element) {
         // Claude 응답 영역 감지
         const responseSelectors = [
-            '.claude-response',
-            '[data-testid="message"]',
-            '.prose'
+            '[data-test-render-count] .font-claude-response', // Claude 응답 텍스트
+            '[data-test-render-count] .grid-cols-1 p.whitespace-normal.break-words', // 응답 텍스트
+            '[data-testid="action-bar-copy"]' // 응답 관련 버튼
         ];
 
         for (const selector of responseSelectors) {
@@ -189,10 +189,13 @@ class CriticalThinkingBot {
                   : [];
 
             responses.forEach((response) => {
-                if (response.textContent && response.textContent.length > 100 && !response.dataset.criticalThinkingShown) {
+                const textContent = response.textContent?.trim();
+                console.log(`Claude Response Detected:`, textContent); // 디버깅용 로그 추가
+
+                if (textContent && textContent.length > 100 && !response.dataset.criticalThinkingShown) {
                     response.dataset.criticalThinkingShown = 'true';
                     const userQ = this.getLatestUserMessage('claude');
-                    this.showCriticalThinkingPrompt(response.textContent, userQ);
+                    this.showCriticalThinkingPrompt(textContent, userQ);
                 }
             });
         }
@@ -305,13 +308,13 @@ ${truncated}
         popup.innerHTML = `
             <div class="popup-content">
                 <div class="popup-header">
-                    <span class="popup-icon">🧪</span>
-                    <span class="popup-title">자동 생성된 비판 응답</span>
+                    <span class="popup-icon"🤷</span>
+                    <span class="popup-title">이런것도 생각해봤나요></span>
                     <button class="popup-close" id="popup-close-btn">×</button>
                 </div>
                 <div class="popup-body">
                     <div id="auto-result" class="critic-result">
-                        <div class="critic-result-title">생성 중...</div>
+                        <div class="critic-result-title">딴지거는중.....</div>
                         <div id="critic-result-summary" class="critic-result-summary"></div>
                         <button id="toggle-detail" class="toggle-detail-btn" style="display:none">
                             <span class="toggle-text">In Detail</span>
@@ -510,7 +513,10 @@ ${truncated}
             if (site === 'chatgpt') {
                 sels = ['[data-message-author-role="user"]'];
             } else if (site === 'claude') {
-                sels = ['[data-testid="message"][data-role="user"]', 'div[aria-label="User message"]'];
+                sels = [
+                    '[data-testid="user-message"] p.whitespace-pre-wrap.break-words', // 사용자 메시지 텍스트
+                    '.group.relative.inline-flex .text-[0.9375rem]' // 사용자 메시지 텍스트
+                ];
             } else if (site === 'gemini') {
                 sels = [
                     'user-query .query-text',
@@ -636,7 +642,7 @@ ${truncated}
                 right: 20px;
                 z-index: 10000;
                 max-width: 520px;
-                background: white;
+                background: white; /* 배경색을 특정 팝업에만 적용 */
                 border-radius: 12px;
                 box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
                 border: 1px solid #e1e5e9;
