@@ -17,13 +17,12 @@ class CriticalThinkingBot {
         this.observer = null;
         this.lastResponseTime = 0;
         this.responseCooldown = 5000; // 5초 쿨다운
-        // 자동 비판 응답 생성 관련 설정
         this.autoGenerate = true;
         this.provider = 'openai';
         this.model = 'gpt-4o-mini';
         this.apiKey = '';
         this.autoSend = false;
-        
+
         this.init();
     }
 
@@ -32,13 +31,11 @@ class CriticalThinkingBot {
         this.setupObserver();
         this.setupMessageListener();
         this.injectStyles();
-        // 초기 스캔 + 주기적 스캔 (실시간 감지 강화)
         setTimeout(() => {
             console.log('초기 스캔 시작');
             this.scanAllResponseBlocks();
         }, 1500);
-        
-        // 주기적 스캔 (3초마다)
+
         this.scanInterval = setInterval(() => {
             if (this.isEnabled) {
                 this.scanAllResponseBlocks();
@@ -70,7 +67,7 @@ class CriticalThinkingBot {
         // DOM 변화 감지
         this.observer = new MutationObserver((mutations) => {
             if (!this.isEnabled) return;
-            
+
             mutations.forEach((mutation) => {
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach((node) => {
@@ -108,7 +105,7 @@ class CriticalThinkingBot {
         try {
             const host = window.location.hostname;
             let inputElement = null;
-            
+
             // 입력 요소 찾기
             if (host.includes('chat.openai.com')) {
                 inputElement = document.querySelector('textarea, [contenteditable="true"]');
@@ -117,7 +114,7 @@ class CriticalThinkingBot {
             } else if (host.includes('gemini.google.com') || host.includes('bard.google.com')) {
                 inputElement = document.querySelector('main [contenteditable="true"], [contenteditable="true"], textarea');
             }
-            
+
             if (inputElement && target === inputElement || inputElement && inputElement.contains(target)) {
                 // 사용자가 입력 중이면 기존 응답 감지 활성화
                 this.lastResponseTime = 0; // 쿨다운 리셋
@@ -168,13 +165,15 @@ class CriticalThinkingBot {
                     response.dataset.criticalThinkingShown = 'true';
                     const userQ = this.getLatestUserMessage('chatgpt');
                     this.showCriticalThinkingPrompt(response.textContent, userQ);
+                    console.log('CriticalThinkingBot initialized');
+                    console.log('Mutation detected:', mutation);
+                    console.log('Detected response:', response.textContent);
                 }
             });
         }
     }
 
     detectClaudeResponse(element) {
-        // Claude 응답 영역 감지
         const responseSelectors = [
             '[data-test-render-count] .font-claude-response', // Claude 응답 텍스트
             '[data-test-render-count] .grid-cols-1 p.whitespace-normal.break-words', // 응답 텍스트
@@ -182,20 +181,15 @@ class CriticalThinkingBot {
         ];
 
         for (const selector of responseSelectors) {
-            const responses = element.querySelectorAll
-                ? element.querySelectorAll(selector)
-                : element.matches && element.matches(selector)
-                  ? [element]
-                  : [];
-
+            const responses = element.querySelectorAll(selector);
             responses.forEach((response) => {
                 const textContent = response.textContent?.trim();
-                console.log(`Claude Response Detected:`, textContent); // 디버깅용 로그 추가
+                console.log(`Claude Response Detected (Korean):`, textContent);
 
                 if (textContent && textContent.length > 100 && !response.dataset.criticalThinkingShown) {
                     response.dataset.criticalThinkingShown = 'true';
                     const userQ = this.getLatestUserMessage('claude');
-                    this.showCriticalThinkingPrompt(textContent, userQ);
+                    this.showCriticalThinkingPrompt(textContent, userQ, 'ko');
                 }
             });
         }
@@ -227,43 +221,27 @@ class CriticalThinkingBot {
         }
     }
 
-    showCriticalThinkingPrompt(responseText, userQuestionText, prevContextSummary = '') {
+    showCriticalThinkingPrompt(responseText, userQuestionText, language = 'ko') {
         this.lastResponseTime = Date.now();
-        
-        // 통계 업데이트
-        chrome.storage.sync.get(['totalPrompts'], (result) => {
-            const totalPrompts = (result.totalPrompts || 0) + 1;
-            chrome.storage.sync.set({ totalPrompts });
-            chrome.runtime.sendMessage({ action: 'updateStats' });
-        });
+        const prevContextSummary = this.getPreviousContext();
 
-        // 지연 시간 후 팝업 표시
         setTimeout(() => {
-            const criticPrompt = this.createCriticPrompt(responseText, userQuestionText, prevContextSummary);
+            const criticPrompt = this.createCriticPrompt(responseText, userQuestionText, prevContextSummary, language);
             this.createPopup(criticPrompt);
         }, this.popupDelay * 1000);
     }
 
     // 다른 LLM이 항상 딴지를 거는 비판자 역할 프롬프트 생성
-    createCriticPrompt(answerText, questionText, prevContextSummary = '') {
+    createCriticPrompt(answerText, questionText, prevContextSummary = '', language = 'ko') {
         const normalized = (answerText || '').trim();
         const truncated = normalized.length > 6000 ? normalized.slice(0, 6000) + '\n... (중략)' : normalized;
         const qNorm = (questionText || this.lastUserMessageText || '').trim();
         const qTrunc = qNorm.length > 2000 ? qNorm.slice(0, 2000) + '\n... (질문 중략)' : qNorm;
-        const hasSensitiveDomain = /의학|의료|건강|진단|치료|법률|법적|소송|계약|투자|주식|코인|금융|재무|부동산|세금/i.test(truncated);
+        const contextTrunc = prevContextSummary.length > 3000 ? prevContextSummary.slice(0, 3000) + '\n... (이전 컨텍스트 중략)' : prevContextSummary;
 
-        const domainClause = hasSensitiveDomain
-            ? `- 민감 영역(의료/법률/투자 등) 관련 주장이 포함되어 있으므로, 관련 전문가 검토 필요성과 잠재적 위험(오독, 규제 위반, 손실 가능성)을 반드시 경고하세요.`
-            : `- 민감 영역이 명확히 드러나지 않더라도, 과도한 확신 표현은 피하고 검증 가능성/한계를 분명히 하세요.`;
+        const prompt = language === 'ko'
+            ? `당신은 비판 전담 LLM(Adversarial Critic)입니다. 아래의 "사용자 질문", "이전 컨텍스트", 그리고 그에 대한 "LLM 답변"을 함께 검토하여, 무조건적인 동의 없이 체계적으로 딴지를 걸며 허점과 리스크를 집요하게 지적하세요. 한국어로 답변하세요.
 
-        // 이전 대화 context 반영 문장 추가
-        const contextClause = prevContextSummary
-            ? `이전 대화의 핵심 맥락: "${prevContextSummary}" 이 점을 반드시 고려하여 비판하세요.`
-            : '';
-
-        const prompt = `당신은 비판 전담 LLM(Adversarial Critic)입니다. 아래의 "사용자 질문"과 그에 대한 "LLM 답변"을 함께 검토하여, 무조건적인 동의 없이 체계적으로 딴지를 걸며 허점과 리스크를 집요하게 지적하세요. 공손함보다 정확성과 회의적 태도를 우선합니다. 한국어로 답변하세요.
-
-${contextClause}
 요구사항:
 - 절대 칭찬으로 시작하지 말 것. 긍정은 금지. 곧바로 핵심 취약점을 콕 집어 비판할 것.
 - 확실하지 않은 부분은 "불확실"로 명시하고, 추가 확인이 필요한 근거/데이터를 요구할 것.
@@ -271,32 +249,26 @@ ${contextClause}
 - 반례와 엣지 케이스를 제시하고, 실패 시나리오와 2차 효과를 구체적으로 설명할 것.
 - 검증 계획(어떻게 사실/수치를 확인할지)과 대안 가설을 제시할 것.
 - 최종적으로 신뢰도 등급(A~F)과 "사용 전 반드시 확인할 체크리스트"를 제공할 것.
-${domainClause}
-
-출력 형식(간결하지만 구체적으로):
-1) 핵심 주장 요약(최대 40자)
-2) 치명적 취약점 TOP-3
-3) 반례/엣지 케이스
-4) 검증 플랜(데이터/절차/도구)
-5) 대안 가설/접근법
-6) 법적/윤리/실무 리스크
-7) 신뢰도 등급(A~F)
-8) 사용 전 체크리스트(불릿)
 
 사용자 질문:
 """
 ${qTrunc || '(질문 텍스트 미탐지)'}
 """
 
+이전 컨텍스트:
+"""
+${contextTrunc || '(이전 컨텍스트 없음)'}
+"""
+
 비판 대상 LLM 답변:
 """
 ${truncated}
-"""`;
+"""` : '';
+
         return prompt;
     }
 
     createPopup(criticPrompt) {
-        // 기존 팝업 제거
         const existingPopup = document.getElementById('critical-thinking-popup');
         if (existingPopup) {
             existingPopup.remove();
@@ -308,8 +280,8 @@ ${truncated}
         popup.innerHTML = `
             <div class="popup-content">
                 <div class="popup-header">
-                    <span class="popup-icon"🤷</span>
-                    <span class="popup-title">이런것도 생각해봤나요></span>
+                    <span class="popup-icon">🤷</span>
+                    <span class="popup-title">이런것도 생각해봤나요</span>
                     <button class="popup-close" id="popup-close-btn">×</button>
                 </div>
                 <div class="popup-body">
@@ -331,7 +303,6 @@ ${truncated}
 
         document.body.appendChild(popup);
 
-        // 닫기 버튼 이벤트 리스너 (header/footer 모두)
         popup.querySelector('#popup-close-btn').onclick = () => popup.remove();
         popup.querySelector('#popup-close-footer').onclick = () => popup.remove();
 
@@ -341,53 +312,53 @@ ${truncated}
             const summaryEl = popup.querySelector('#critic-result-summary');
             const detailEl = popup.querySelector('#critic-result-detail');
             const toggleBtn = popup.querySelector('#toggle-detail');
-            
+
             resultWrap.style.display = 'block';
             summaryEl.textContent = '생성 중...';
 
             try {
-              chrome.runtime.sendMessage({
-                action: 'generateCritique',
-                provider: this.provider,
-                model: this.model,
-                apiKey: this.apiKey,
-                prompt: criticPrompt
-              }, (resp) => {
-                const err = chrome.runtime.lastError;
-                if (err) {
-                  summaryEl.textContent = `백그라운드 연결 실패: ${err.message || err}`;
-                  return;
-                }
-                if (!resp || resp.error) {
-                  summaryEl.textContent = `오류: ${(resp && resp.error) || '생성 실패'}`;
-                  return;
-                }
-                
-                // 응답을 요약과 상세로 분리
-                const processedResponse = this.processCritiqueResponse(resp.text || '(내용 없음)');
-                summaryEl.innerHTML = processedResponse.summary;
-                detailEl.innerHTML = processedResponse.detail;
-                
-                // 상세 내용이 있으면 토글 버튼 표시
-                if (processedResponse.detail.trim()) {
-                    toggleBtn.style.display = 'block';
-                    toggleBtn.onclick = () => {
-                        const toggleText = toggleBtn.querySelector('.toggle-text');
-                        const toggleIcon = toggleBtn.querySelector('.toggle-icon');
-                        if (detailEl.style.display === 'none') {
-                            detailEl.style.display = 'block';
-                            toggleText.textContent = 'Hide Detail';
-                            toggleIcon.textContent = '▲';
-                        } else {
-                            detailEl.style.display = 'none';
-                            toggleText.textContent = 'In Detail';
-                            toggleIcon.textContent = '▼';
-                        }
-                    };
-                }
-              });
+                chrome.runtime.sendMessage({
+                    action: 'generateCritique',
+                    provider: this.provider,
+                    model: this.model,
+                    apiKey: this.apiKey,
+                    prompt: criticPrompt
+                }, (resp) => {
+                    const err = chrome.runtime.lastError;
+                    if (err) {
+                        summaryEl.textContent = `백그라운드 연결 실패: ${err.message || err}`;
+                        return;
+                    }
+                    if (!resp || resp.error) {
+                        summaryEl.textContent = `오류: ${(resp && resp.error) || '생성 실패'}`;
+                        return;
+                    }
+
+                    // 응답을 요약과 상세로 분리
+                    const processedResponse = this.processCritiqueResponse(resp.text || '(내용 없음)');
+                    summaryEl.innerHTML = processedResponse.summary;
+                    detailEl.innerHTML = processedResponse.detail;
+
+                    // 상세 내용이 있으면 토글 버튼 표시
+                    if (processedResponse.detail.trim()) {
+                        toggleBtn.style.display = 'block';
+                        toggleBtn.onclick = () => {
+                            const toggleText = toggleBtn.querySelector('.toggle-text');
+                            const toggleIcon = toggleBtn.querySelector('.toggle-icon');
+                            if (detailEl.style.display === 'none') {
+                                detailEl.style.display = 'block';
+                                toggleText.textContent = 'Hide Detail';
+                                toggleIcon.textContent = '▲';
+                            } else {
+                                detailEl.style.display = 'none';
+                                toggleText.textContent = 'In Detail';
+                                toggleIcon.textContent = '▼';
+                            }
+                        };
+                    }
+                });
             } catch (e) {
-              summaryEl.textContent = `메시지 전송 실패: ${e && e.message ? e.message : e}`;
+                summaryEl.textContent = `메시지 전송 실패: ${e && e.message ? e.message : e}`;
             }
         }
 
@@ -557,17 +528,17 @@ ${truncated}
         let summary = '';
         let detail = '';
         let isDetail = false;
-        
+
         // 핵심 주장과 Thesis statement 찾기
         const summaryPatterns = [
             /^1\)\s*핵심 주장 요약/,
             /^2\)\s*치명적 취약점 TOP-3/,
             /^3\)\s*반례\/엣지 케이스/
         ];
-        
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            
+
             // 요약 부분 (핵심 주장 + TOP-3)
             if (summaryPatterns.some(pattern => pattern.test(line)) || 
                 (summary && !isDetail && i < 10)) {
@@ -578,12 +549,12 @@ ${truncated}
                 detail += line + '\n';
             }
         }
-        
+
         // 요약이 비어있으면 전체를 요약으로
         if (!summary.trim()) {
             summary = text;
         }
-        
+
         return {
             summary: summary.trim(),
             detail: detail.trim()
@@ -711,8 +682,28 @@ ${truncated}
         `;
         document.head.appendChild(style);
     }
+
+    getPreviousContext() {
+        const contextSelectors = [
+            '[data-message-author-role="user"]',
+            '[data-message-author-role="assistant"]',
+            '[data-testid="conversation-turn"]'
+        ];
+
+        let context = '';
+        contextSelectors.forEach((selector) => {
+            document.querySelectorAll(selector).forEach((el) => {
+                const text = el.textContent?.trim();
+                if (text) {
+                    context += `${text}\n\n`;
+                }
+            });
+        });
+
+        return context.trim();
+    }
 }
 
-// Extension 초기화
+// CriticalThinkingBot 초기화
 new CriticalThinkingBot();
 }

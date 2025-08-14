@@ -1,5 +1,8 @@
 # 🤔 Critical Thinking Bot
 
+Make people intelligent greatest again!!!
+
+최근들어 사람들이 LLM답변에 대해서 너무 맹신하고 있죠? 그것을 방지하기 위해서 오픈소스로 하는 질문과 답변에 대해서 딴지를 거는 extension을 만들었습니다.
 LLM 답변에 대해 비판적 사고를 유도하는 Chrome Extension입니다.
 
 ## 📋 기능
